@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "applicationInsightsName": {
+      "value": "ai-shared"
+    },
+    "alertName": {
+      "value": [
+        "MyDemoService. Exceptions count greater than defined threshold",                
+        "Request timing. Diagnosing slow requests on the platform"
+      ]
+    },
+    "alertDescription": {
+      "value": "Sends the alert when exceptions count greater than defined threshold"
+    },
+    "alertQuery": {
+      "value": [
+        "exceptions | where cloud_RoleName == \"MyDemoService\" and timestamp > ago(5m) | project timestamp, outerMessage, problemId, operation_Id , innermostMessage",        
+        "requests | where  timestamp > ago(10m) and (duration / 1000) > 4 | project name , duration , cloud_RoleName , operation_Id | summarize operation_Id=any(operation_Id), avg_duration=(avg(duration) / 1000) by name, cloud_RoleName | sort by avg_duration desc nulls last"        
+      ]
+    },
+    "alertSchedule": {
+      "value": [
+        {
+          "Frequency": 5,
+          "Time": 5
+        },
+        {
+          "Frequency": 10,
+          "Time": 10
+        }
+      ]
+    },
+    "actionGrp": {
+      "value": {
+        "GroupName": "ag-teams-notification",
+        "ShortName": "teams-ntfy",
+        "Subject": "Malfunction notifications."
+      }
+    },
+    "customWebhookPayload": {
+      "value": [
+        "{\"IncludeSearchResults\": true, \"AlertRuleName\":\"#alertrulename\",\"LinkToSearchResults\": \"#linktosearchresults\",\"Description\": \"The amount of exceptions exceeded planned threshold of **#thresholdvalue**. Current value: **#searchresultcount**\",\"AlertType\": \"#alerttype\",\"FiredDateTime\":\"#searchintervalendtimeutc\"}",       
+        "{\"IncludeSearchResults\": true, \"AlertRuleName\":\"#alertrulename\", \"LinkToSearchResults\": \"#linktosearchresults\", \"Description\": \"**#searchresultcount** requests below exceeded duration of 4 seconds\",\"Severity\": \"#severity\",\"AlertType\": \"duration\",\"FiredDateTime\": \"#searchintervalendtimeutc\"}"        
+      ]
+  },
+    "alertTrigger": {
+      "value": [
+        {
+          "Operator": "GreaterThan",
+          "Threshold": "5"
+        },
+        {
+          "Operator": "GreaterThan",
+          "Threshold": "1"
+        }
+      ]
+    },
+    "logicApp": {
+      "value": {
+        "Name": "la-teams-notifications",
+        "WebHookUrl": "https://outlook.office.com/webhook/{some-teams-channel}"        
+      }
+    }
+  }
+}

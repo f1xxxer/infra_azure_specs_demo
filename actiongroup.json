@@ -1,0 +1,35 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "actionGroupName": {
+            "type": "string"
+        },
+        "actionGroupShortName": {
+            "type": "string"
+        },
+        "logicappName": {
+            "type": "string"
+        }
+    },
+    "functions": [],
+    "variables": {},
+    "resources": [{           
+            "type": "Microsoft.Insights/actionGroups",
+            "apiVersion": "2018-03-01",
+            "name": "[parameters('actionGroupName')]",
+            "location": "Global",
+            "properties": {
+                "groupShortName": "[parameters('actionGroupShortName')]",
+                "enabled": true,
+                "logicAppReceivers": [
+                    {
+                        "name": "[parameters('logicappName')]",
+                        "callbackUrl": "[listCallbackURL(concat(resourceId('Microsoft.Logic/workflows/', parameters('logicappName')), '/triggers/manual'), '2016-06-01').value]",
+                        "resourceId": "[resourceId('Microsoft.Logic/workflows', parameters('logicappName'))]"
+                    }
+                ]                
+            }
+        }],
+    "outputs": {}
+}

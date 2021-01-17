@@ -1,0 +1,148 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "applicationInsightsName": {
+            "type": "String"
+        },
+        "alertName": {
+            "type": "array"
+        },
+        "alertDescription": {
+            "type": "string"
+        },
+        "alertQuery": {
+            "type": "array"
+        },
+        "alertSchedule": {
+            "type": "array"
+        },
+        "actionGrp": {
+            "type": "object"
+        },
+        "customWebhookPayload": {
+            "type": "array"
+        },
+        "alertTrigger": {
+            "type": "array"
+        },
+        "logicApp": {
+            "type": "object"
+        }
+    },
+    "variables": {
+        "location": "[resourceGroup().location]",
+        "subscription": "[subscription()]",
+        "alertStatus": "true",
+        "applicationInsightsSourceId": "[resourceId('microsoft.insights/components', parameters('applicationInsightsName'))]",
+        "alertSeverityLevel": "2"        
+    },
+    "resources": [       
+        // ***************************** LOGIC APP *************************************************
+        {
+            "name": "logicappdeploy",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-06-01",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "relativePath": "logicapp.json"
+                },
+                "parameters": {       
+                    "name": {
+                        "value": "[parameters('logicApp').Name]"
+                    }, 
+                    "webHookUrl": {
+                        "value": "[parameters('logicApp').WebHookUrl]"        
+                    }
+                }
+            }            
+        },
+        // ***************************** ACTION GROUP *************************************************
+        {
+            "name": "actiongroupdeploy",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-06-01",
+            "dependsOn": [
+                "[resourceId('Microsoft.Resources/deployments', 'logicappdeploy')]"
+            ],            
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "relativePath": "actiongroup.json"
+                },
+                "parameters": {       
+                    "actionGroupName": {
+                       "value": "[parameters('actionGrp').GroupName]"            
+                    },
+                    "actionGroupShortName": {
+                       "value": "[parameters('actionGrp').ShortName]"            
+                    },
+                    "logicappName": {
+                        "value": "[parameters('logicApp').Name]"
+                    }
+                }
+            }                        
+        },
+        // ***************************** ALERTS *************************************************
+        {
+            "dependsOn": [
+                "[parameters('applicationInsightsName')]",
+                "[resourceId('Microsoft.Resources/deployments', 'actiongroupdeploy')]"
+            ],
+            "name": "[parameters('alertName')[copyIndex()]]",
+            "type": "Microsoft.Insights/scheduledQueryRules",
+            "apiVersion": "2018-04-16",
+            "location": "[variables('location')]",
+            "properties": {
+                "description": "[parameters('alertDescription')]",
+                "enabled": "[variables('alertStatus')]",
+                "source": {
+                    "query": "[parameters('alertQuery')[copyIndex()]]",
+                    "dataSourceId": "[variables('applicationInsightsSourceId')]",
+                    "queryType": "ResultCount"
+                },
+                "schedule": {
+                    "frequencyInMinutes": "[parameters('alertSchedule')[copyIndex()].Frequency]",
+                    "timeWindowInMinutes": "[parameters('alertSchedule')[copyIndex()].Time]"
+                },
+                "action": {
+                    "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction",
+                    "severity": "[variables('alertSeverityLevel')]",
+                    "aznsAction": {
+                        "actionGroup": "[array(resourceId('Microsoft.Insights/actionGroups', parameters('actionGrp').GroupName))]",
+                        "emailSubject": "[parameters('actionGrp').Subject]",
+                        "customWebhookPayload": "[parameters('customWebhookPayload')[copyIndex()]]"
+                    },
+                    "trigger": {
+                        "thresholdOperator": "[parameters('alertTrigger')[copyIndex()].Operator]",
+                        "threshold": "[parameters('alertTrigger')[copyIndex()].Threshold]"
+                    }
+                }
+            },
+            "copy":{
+                "count": 2,
+                "name": "create-alerts"
+            }
+        },
+        // ***************************** APPLICATION INSIGHTS *************************************************
+        {
+            "type": "microsoft.insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[parameters('applicationInsightsName')]",
+            "location": "[variables('location')]",
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "Flow_Type": "Redfield",
+                "Request_Source": "Mydemo"
+            }
+        }
+    ],
+    "outputs": {
+        "instrumentationKey": {
+            "type": "string",
+            "value": "[reference(parameters('applicationInsightsName')).instrumentationKey]"
+        }
+    }
+}

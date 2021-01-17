@@ -1,0 +1,25 @@
+parameters:
+  environment: ''
+  azureSubscription: ''
+
+steps:
+- download: current
+  artifact: drop
+  patterns: 'drop/Monitoring/*.json'
+- task: AzureResourceGroupDeployment@2
+  displayName: 'Create Application Insights'
+  inputs:
+    azureSubscription: ${{ parameters.azureSubscription }}
+    resourceGroupName: 'rg-Shared-${{ parameters.environment }}'
+    location: 'West Europe'
+    csmFile: '$(Pipeline.Workspace)/drop/Monitoring/deploy.json'
+    csmParametersFile: '$(Pipeline.Workspace)/drop/Monitoring/parameters.json'
+    overrideParameters: '-applicationInsightsName "ai-Shared-${{ parameters.environment }}"'
+    deploymentOutputs: instrumentationKey
+- task: keesschollaart.arm-outputs.arm-outputs.ARM Outputs@5
+  displayName: 'ARM Outputs'
+  inputs:
+    ConnectedServiceNameARM: ${{ parameters.azureSubscription }}
+    resourceGroupName: 'rg-Shared-${{ parameters.environment }}'
+    prefix: '${{ parameters.environment }}-'
+    outputNames: instrumentationKey
