@@ -1,2 +1,2 @@
 # infra_azure_specs_demo
-Demo project to set up azure dev ops with template specs
+Azure Resource Manager template specs. Proactive application  monitoring using Azure alerts.
